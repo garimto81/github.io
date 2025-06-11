@@ -23,65 +23,124 @@
 <script>
 const width = 10;
 const height = 10;
-let player = {x: 5, y: 5};
-let monsters = [];
-for (let i = 0; i < 5; i++) {
-    monsters.push({x: Math.floor(Math.random()*width), y: Math.floor(Math.random()*height)});
+const monsterCount = 5;
+let player;
+let monsters;
+let running;
+
+function initGame() {
+    player = {x: Math.floor(width/2), y: Math.floor(height/2)};
+    monsters = [];
+    while (monsters.length < monsterCount) {
+        const pos = {
+            x: Math.floor(Math.random() * width),
+            y: Math.floor(Math.random() * height)
+        };
+        if (pos.x !== player.x || pos.y !== player.y) {
+            monsters.push(pos);
+        }
+    }
+    running = true;
+    draw();
 }
+
 function draw() {
     let output = '';
-    for (let y=0; y<height; y++) {
-        for (let x=0; x<width; x++) {
+    for (let y = 0; y < height; y++) {
+        for (let x = 0; x < width; x++) {
             let char = '.';
-            if (player.x === x && player.y === y) char = '@';
-            else {
-                for (const m of monsters) {
-                    if (m.x === x && m.y === y) {char = 'M'; break;}
-                }
+            if (player.x === x && player.y === y) {
+                char = '@';
+            } else if (monsters.some(m => m.x === x && m.y === y)) {
+                char = 'M';
             }
             output += char;
         }
         output += '\n';
     }
+    if (!running && monsters.length === 0) {
+        output += '\n게임 승리! (R 키로 재시작)';
+    } else if (!running) {
+        output += '\n게임 오버! (R 키로 재시작)';
+    }
     document.getElementById('game').textContent = output;
 }
+
 function movePlayer(dx, dy) {
+    if (!running) return;
     const nx = player.x + dx;
     const ny = player.y + dy;
-    if (nx>=0 && nx<width && ny>=0 && ny<height) {
-        player.x = nx; player.y = ny;
+    if (nx >= 0 && nx < width && ny >= 0 && ny < height) {
+        player.x = nx;
+        player.y = ny;
     }
 }
+
 function moveMonsters() {
+    if (!running) return;
     for (const m of monsters) {
-        const dir = Math.floor(Math.random()*4);
-        let dx=0, dy=0;
-        if (dir===0) dx=-1; else if (dir===1) dx=1; else if (dir===2) dy=-1; else dy=1;
-        const nx = m.x + dx; const ny = m.y + dy;
-        if (nx>=0 && nx<width && ny>=0 && ny<height) { m.x=nx; m.y=ny; }
-    }
-}
-function checkGameOver() {
-    for (const m of monsters) {
-        if (m.x === player.x && m.y === player.y) {
-            document.getElementById('game').textContent += '\n게임 오버!';
-            document.removeEventListener('keydown', handler);
-            return true;
+        const dir = Math.floor(Math.random() * 4);
+        const dx = dir === 0 ? -1 : dir === 1 ? 1 : 0;
+        const dy = dir === 2 ? -1 : dir === 3 ? 1 : 0;
+        const nx = m.x + dx;
+        const ny = m.y + dy;
+        if (nx >= 0 && nx < width && ny >= 0 && ny < height) {
+            m.x = nx;
+            m.y = ny;
         }
     }
-    return false;
 }
-function handler(e) {
-    if (e.key==='ArrowLeft') movePlayer(-1,0);
-    else if (e.key==='ArrowRight') movePlayer(1,0);
-    else if (e.key==='ArrowUp') movePlayer(0,-1);
-    else if (e.key==='ArrowDown') movePlayer(0,1);
+
+function attack() {
+    if (!running) return;
+    const targets = monsters.filter(m =>
+        Math.abs(m.x - player.x) + Math.abs(m.y - player.y) === 1
+    );
+    if (targets.length > 0) {
+        monsters = monsters.filter(m => !targets.includes(m));
+    }
+    if (monsters.length === 0) {
+        running = false;
+    }
+}
+
+function checkGameOver() {
+    if (!running) return;
+    if (monsters.some(m => m.x === player.x && m.y === player.y)) {
+        running = false;
+    }
+}
+
+function handleKey(e) {
+    switch (e.key) {
+        case 'ArrowLeft':
+            movePlayer(-1, 0);
+            break;
+        case 'ArrowRight':
+            movePlayer(1, 0);
+            break;
+        case 'ArrowUp':
+            movePlayer(0, -1);
+            break;
+        case 'ArrowDown':
+            movePlayer(0, 1);
+            break;
+        case ' ':
+        case 'f':
+            attack();
+            break;
+        case 'r':
+        case 'R':
+            if (!running) initGame();
+            return;
+    }
     moveMonsters();
-    draw();
     checkGameOver();
+    draw();
 }
-draw();
-document.addEventListener('keydown', handler);
+
+document.addEventListener('keydown', handleKey);
+initGame();
 </script>
 </body>
 </html>
